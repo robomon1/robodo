@@ -1,0 +1,27 @@
+
+ext.getOption = { option, optdefault="" ->
+  //println "Passed in: option=${option}, default=${optdefault}"
+  // Initial default value
+  def value = "${optdefault}"
+  //println "Value set to default: ${value}"
+  // Project property overrides default value
+  if (project.hasProperty(option)) {
+    value = project.properties[option]
+    //println "Value set to project property: ${value}"
+  }
+  // System property overrides all others
+  if (System.properties[option] != null) {
+    value = System.properties[option]
+    //println "Value set to system property: ${value}"
+  }
+  return value
+}
+
+ext.getConfigs = {
+  def cfgs = new ConfigSlurper().parse(file('scripts/configs.gradle').toURI().toURL())
+  return cfgs.configs
+}
+
+ext.getConfig = { config ->
+  return getConfigs()[config]
+}
