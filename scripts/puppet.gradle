@@ -15,7 +15,6 @@ import org.eclipse.jgit.api.errors.*
 import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
 import org.eclipse.jgit.internal.storage.file.FileRepository
 import org.eclipse.jgit.lib.Repository
-import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
 buildscript {
 	repositories {
@@ -68,19 +67,6 @@ ext.jgitRepoCreate = { localPath ->
 	newRepo.create()
 }
 
-ext.jgitRepoClone = { remotePath, localPath, username, password ->
-	Git repo = Git.cloneRepository()
-		.setURI(remotePath)
-		.setDirectory(new File(localPath))
-		.setNoCheckout(true)
-		.setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
-		.call()
-
-	return repo
+ext.jgitRepoClone = { remotePath, localPath ->
+	Git.cloneRepository().setURI(remotePath).setDirectory(new File(localPath)).setNoCheckout(false).call()
 }
-
-ext.jgitCheckout = { Git repo, branch='master' ->
-	repo.checkout().setName(branch).call()
-	return repo
-}
-	

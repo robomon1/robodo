@@ -61,7 +61,9 @@ task testRepoCreate << {
 }
 
 task testRepoClone << {
-	jgitRepoClone("https://github.com/robomon1/robodo.git", "${System.env.HOME}/tmp/testrepo")
+        def remoteRepo = getOption("remoteRepo", "https://github.com/robomon1/robodo.git")
+        def localRepo = getOption("localRepo", "${System.env.HOME}/tmp/testrepo")
+	jgitRepoClone(remoteRepo, localRepo) 
 }
 
 // Old stuff starts here ----

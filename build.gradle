@@ -9,6 +9,25 @@ task wrapper(type: Wrapper) {
   gradleVersion = '2.0'
 }
 
+task bootstrap << {
+	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
+	def server = getOption('server') // Server name
+	def remoteRepo = getOption('remoteRepo') // Remote Git Repository
+	def checkout = getOption('checkout', 'master') // Branch, Tag, Commit
+	def username = getOption('username') // Git username
+	def password = getOption('password') // Git password
+
+        println "env = ${env}"
+        println "server = ${server}"
+        println "remoteRepo = ${remoteRepo}"
+        println "checkout = ${checkout}"
+        println "username = ${username}"
+        //println "password = ${password}"
+	
+	Git repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
+	repo = jgitCheckout(repo)
+}
+	
 // Do a re-deploy of the product.
 task getconfig << {
 	// Fetch the parameters

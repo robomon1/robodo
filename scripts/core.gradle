@@ -19,7 +19,12 @@ ext.getOption = { option, optdefault="" ->
   // Initial default value
   def value = "${optdefault}"
   //println "Value set to default: ${value}"
-  // Project property overrides default value
+  // Environment variable overrides default value
+  if (System.getenv(option) != null) {
+    value = System.getenv(option)
+    //println "Value set to environment variable: ${value}"
+  }
+  // Project property overrides environment variable
   if (project.hasProperty(option)) {
     value = project.properties[option]
     //println "Value set to project property: ${value}"
