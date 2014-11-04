@@ -15,6 +15,7 @@ import org.eclipse.jgit.api.errors.*
 import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
 import org.eclipse.jgit.internal.storage.file.FileRepository
 import org.eclipse.jgit.lib.Repository
+imoprt org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
 buildscript {
 	repositories {
