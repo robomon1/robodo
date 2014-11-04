@@ -1,3 +1,18 @@
+apply from: 'scripts/github.gradle'
+
+import groovyx.net.http.URIBuilder
+import groovyx.net.http.RESTClient
+import groovyx.net.http.Method
+import groovyx.net.http.ContentType
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'org.codehaus.groovy.modules.http-builder:http-builder:0.7.1'
+	}
+}
 
 ext.getOption = { option, optdefault="" ->
   //println "Passed in: option=${option}, default=${optdefault}"
@@ -17,11 +32,78 @@ ext.getOption = { option, optdefault="" ->
   return value
 }
 
-ext.getConfigs = {
+ext.getServerConfig = { configUri ->
+	
+	def config
+	
+	def uriScheme = new URIBuilder(configUri).getScheme()
+	
+	println "uriScheme = ${uriScheme}"
+	
+	switch( uriScheme ) {
+		case "git":
+			println "git scheme - ${uriScheme}"
+			break;
+		case "file":
+			println "file scheme - ${uriScheme}"
+			break;
+		case ~"https?":
+			println "http or https scheme - ${uriScheme}"
+			getConfigHttp(configUri)
+			break;
+		default:
+			println "default scheme - ${uriScheme}"
+	}
+	
+	return config
+}
+
+ext.getConfigGit = { configUri ->
   def cfgs = new ConfigSlurper().parse(file('scripts/configs.gradle').toURI().toURL())
+  return cfgs.configs
+}
+
+ext.getConfigHttp = { configUri ->
+	def httpUri = new URIBuilder(configUri)
+	println "Authority = ${httpUri.toURL().getAuthority()}"
+  def restClient = new RESTClient("${httpUri.getScheme()}://${httpUri.toURL().getAuthority()}")
+	restClient.request(Method.GET, ContentType.JSON) { req ->
+		uri.path = "${httpUri.toURL().getPath()}"
+		headers << [
+			'Accept' : 'application/json'
+			]
+		
+		response.success = { resp, json ->
+	    //println "Response: ${resp.statusLine}"
+	    //println "Response length: ${resp.headers.'Content-Length'}"
+			resp.setData(json)
+			//println "response data: ${resp.getData()}"
+			return resp
+		}
+				
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+			return resp
+		}
+	}
+}
+
+ext.getConfigs = { cfgfile="scripts/configs.gradle" ->
+  def cfgs = new ConfigSlurper().parse(file(cfgfile).toURI().toURL())
   return cfgs.configs
 }
 
 ext.getConfig = { config ->
   return getConfigs()[config]
+}
+
+ext.mergeConfigs = { cfg1, cfg2 ->
+	def cfgs1 = new ConfigSlurper().parse(file(cfg1).toURI().toURL())
+	println "cfgs1 = ${cfgs1}"
+	def cfgs2 = new ConfigSlurper().parse(file(cfg2).toURI().toURL())
+	println "cfgs2 = ${cfgs2}"
+	cfgs1.merge(cfgs2)
+	println "cfgs1 merged with cfgs2 = ${cfgs1.configs}"
+	
+	return cfgs1.configs
 }

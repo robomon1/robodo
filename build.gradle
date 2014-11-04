@@ -1,4 +1,5 @@
 apply from: 'scripts/core.gradle'
+apply from: 'scripts/test.gradle'
 
 repositories {
   mavenCentral()
@@ -7,4 +8,27 @@ repositories {
 task wrapper(type: Wrapper) {
   gradleVersion = '2.0'
 }
- 
+
+// Do a re-deploy of the product.
+task getconfig << {
+	// Fetch the parameters
+	def env = getOption('env') // Environment such as dev, qa, prd
+	def product = getOption('product') // Product such as wellfx, wellfxadmin, solr, chat
+	def version = getOption('version') // Version
+	def revision = getOption('revision') 	// Revision
+	def server = getOption('server') //server id
+	
+	println "env = ${env}"
+	println "product = ${product}"
+	println "version = ${version}"
+	println "revision = ${revision}"
+	println "server = ${server}"
+	
+	def config = getConfig(product)
+	println "config = ${config}"
+
+	getServerConfig("git:///folder/test")
+	getServerConfig("file:///folder/test")
+//	getServerConfig("http:///folder/test")
+	getServerConfig("https://api.github.com/repos/robomon1/roboactive")
+}

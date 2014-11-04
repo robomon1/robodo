@@ -1,0 +1,5 @@
+configs {
+	environment = "dev"
+	server = "DevTest1"
+	
+}

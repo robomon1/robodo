@@ -1,0 +1,555 @@
+import com.sun.net.httpserver.Headers
+import groovyx.net.http.RESTClient
+import groovyx.net.http.Method
+import groovyx.net.http.ContentType
+import groovyx.net.http.ParserRegistry
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'org.codehaus.groovy.modules.http-builder:http-builder:0.5.2'
+	}
+}
+
+ext.api_version = "1.5"
+//ext.api_version = "1.0"
+
+//ext.accessKey="AKIAJSSG46VJAFLB4IQA"
+//ext.secretKey="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"
+
+//ext.endpoint="https://my.rightscale.com"
+ext.endpoint="https://us-4.rightscale.com"
+ext.account="41084"
+//ext.endpoint="https://my.rightscale.com"
+//ext.endpoint="https://us-3.rightscale.com"
+ext.endpoint="https://us-4.rightscale.com"
+ext.cookies = []
+
+ext.refresh_token="d7a38534ee6f96c6a285a0b15f05d9dfa834ea2b"
+
+ext.api_path = ""
+if (api_version == "1.0") {
+	api_path = "/api/acct/${account}"
+}
+else {
+	api_path = "/api"
+}
+
+// Used for OAuth
+ext.token_type = ""
+ext.access_token = ""
+
+// Used fo Basic Authentication
+ext.cookie = ""
+
+// Rightscale stupidity
+
+ext.rsclient = new RESTClient(endpoint)
+//rsclient.parser.'application/vnd.rightscale.deployment+json' = rsclient.parser.'application/json'
+
+ext.rsapiLogin = {
+	api_version == "1.0" ? rsapiLoginBasic() : rsapiLoginOAuth()	
+}
+
+ext.rsapiLoginOAuth = { ref_token="d7a38534ee6f96c6a285a0b15f05d9dfa834ea2b" ->
+	
+	if (access_token.length() > 0) {
+		return
+	}
+	
+	def params = [ 
+		"grant_type" : "refresh_token",
+		"refresh_token" : "${ref_token}"
+		]
+	
+	//println "params = ${params}"
+	
+	rsclient.request(Method.POST) { req ->
+		uri.path = "${api_path}/oauth2"
+		requestContentType = ContentType.URLENC
+		headers << [
+			'X-API-VERSION' : '1.5',
+			'Accept' : 'application/json'
+			]
+		
+		body = params
+		//body = [ "grant_type" : "refresh_token", "refresh_token" : "${ref_token}" ]
+		
+		response.success = { resp, json ->
+	    //println "My response handler got response: ${resp.statusLine}"
+			resp.setData(json)
+			//println "access_token received: ${json.access_token}"
+			access_token = "${json.access_token}"
+			token_type = json.token_type
+			resp.headers.each { header ->
+				//println "${header}"
+			}
+			resp
+		}
+		
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+		}
+	}
+}
+
+ext.rsapiLoginBasic = { user="jt@well-fx.com", password="\$BigSuccess415", account="41084" ->
+	
+	if (cookies.size() > 0) {
+		return
+	}
+	
+	println "Logging into Rightscale API..."
+	ext.auth = "${user}:${password}".getBytes('iso-8859-1').encodeBase64()
+	
+	rsclient.request(Method.GET, ContentType.JSON) { req ->
+		uri.path = "${api_path}/login"
+		headers << [
+			'X-API-VERSION' : "1.0",
+			'Authorization' : "Basic ${auth}",
+			'Accept' : 'application/json'
+			]
+		
+		response.success = { resp, reader ->
+			//assert resp.status == 204
+	    //println "My response handler got response: ${resp.statusLine}"
+			resp.headers.each { header ->
+				if (header.name == "Set-Cookie") {
+					//println "${header}"
+					if (cookie.length() == 0 ) {
+						cookie = "${header.value}"
+						println "cookie set: ${cookie}"
+					}
+				}
+			}
+		}
+		
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+		}
+	}
+}
+
+/**
+ * 
+ * API for get request agains the Rightscale API 
+ * Handles both API 1.0 and API 1.5
+ * 
+ */
+ext.rsapiGet = { rsapi ->
+	
+	def now = new Date()
+	def dateString = now.format("MM-dd-yyyy HH:mm:ss a")
+	println "${dateString}:GET:${rsapi}"
+
+	// set the RS authentication cookie or OAuth access_token
+	ext.login = rsapiLogin()
+
+	// Default to 1.0 api	
+	def api_headers = [ 
+		'X-API-VERSION' : "1.0", 
+		'Cookie' : "${cookie}",
+		'Accept' : 'application/json'
+		]
+
+	// If we have an access_token then lets use that
+	if ( access_token.length() > 0 ) {
+//		println "Setting API 1.5 headers..."
+		api_headers = [ 
+			'X-API-VERSION' : "1.5", 
+			'Authorization' : "Bearer ${access_token}",
+			'Accept' : 'application/json'
+			]
+//		println "${api_headers.toString()}" 
+	}
+	
+	rsclient.request(Method.GET, ContentType.JSON) { req ->
+		uri.path = "$rsapi"
+		requestContentType = ContentType.JSON
+		headers << api_headers 
+
+		//println "${headers}"
+		
+		response.success = { resp, json ->
+	    //println "Response: ${resp.statusLine}"
+	    //println "Response length: ${resp.headers.'Content-Length'}"
+			resp.setData(json)
+			//println "response data: ${resp.getData()}"
+			return resp
+		}
+		
+		response.'500' = { resp ->
+			println "500 Error: ${resp.statusLine}"
+			dumpResponse(resp)
+			return resp
+		}
+
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+			return resp
+		}
+	}
+}
+
+ext.rsapiPut = { rsapi, params=[:] ->
+	
+	def now = new Date()
+	def dateString = now.format("MM-dd-yyyy HH:mm:ss a")
+	println "${dateString}:PUT:${rsapi}:${params.toString()}"
+
+	// set the RS authentication cookie
+	ext.login = rsapiLogin()
+	
+	// Default to 1.0 api	
+	def api_headers = [ 
+		'X-API-VERSION' : "1.0", 
+		'Cookie' : "${cookie}",
+		'Accept' : 'application/json'
+		]
+
+	// If we have an access_token then lets use that
+	if ( access_token.length() > 0 ) {
+//		println "Setting API 1.5 headers..."
+		api_headers = [ 
+			'X-API-VERSION' : "1.5", 
+			'Authorization' : "Bearer ${access_token}",
+			'Accept' : 'application/json'
+			]
+//		println "${api_headers.toString()}" 
+	}
+	
+	rsclient.request(Method.PUT, ContentType.JSON) { req ->
+		//body = params
+		uri.path = "${rsapi}"
+		uri.query = params
+
+		requestContentType = ContentType.JSON
+		headers << api_headers 
+		
+		response.success = { resp, json ->
+	    //println "Response: ${resp.statusLine}"
+	    //println "Response length: ${resp.headers['Content-Length']}"
+			resp.setData(json)
+			//println "response data: ${resp.getData()}"
+			return json
+		}
+		
+		response.'500' = { resp ->
+			println "500 Error: ${resp.statusLine}"
+			dumpResponse(resp)
+			return resp
+		}
+
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+		}
+	}
+}
+
+ext.rsapiPost = { rsapi, params=[:], pbody="" ->
+	
+	def now = new Date()
+	def dateString = now.format("MM-dd-yyyy HH:mm:ss a")
+	println "${dateString}:POST:${rsapi}:${params.toString()}"
+
+	// set the RS authentication cookie
+	ext.login = rsapiLogin()
+	
+	// Default to 1.0 api	
+	def api_headers = [ 
+		'X-API-VERSION' : "1.0", 
+		'Cookie' : "${cookie}",
+		'Accept' : 'application/json'
+		]
+
+	// If we have an access_token then lets use that
+	if ( access_token.length() > 0 ) {
+//		println "Setting API 1.5 headers..."
+		api_headers = [ 
+			'X-API-VERSION' : "1.5", 
+			'Authorization' : "Bearer ${access_token}",
+			'Accept' : 'application/json'
+			]
+//		println "${api_headers.toString()}" 
+	}
+	
+	// note: Everything you need will be in the response headers (ex: Location)
+	rsclient.request(Method.POST, ContentType.JSON) { req ->
+		uri.path = "${rsapi}"
+		uri.query = params
+		
+		requestContentType = ContentType.JSON
+		headers << api_headers
+		 
+		body = "${pbody}"
+		
+		response.success = { resp ->
+	    println "Response: ${resp.statusLine}"
+			//dumpResponse(resp)
+			if (resp.data != null) {
+				println "Whoa - we got post data so let's check it out!!"
+				println "resp.data = ${resp.data}"
+			}
+	    //println "Response length: ${resp.headers.'Content-Length'}"
+			// In Post commands we want the resp as the data should be empty
+			return resp
+		}
+		
+		response.'406' = { resp ->
+			// Some of the Rightscale APIs don't like the ContentType.JSON even though this is a post
+			// and nothing should be returned in the data anyways so we just swallow this error
+			return resp
+		}
+
+		response.'422' = { resp ->
+			println "422 Error: ${resp.statusLine}"
+			dumpResponse(resp)
+			return resp
+		}
+			
+		response.'500' = { resp ->
+			println "500 Error: ${resp.statusLine}"
+			dumpResponse(resp)
+			return resp
+		}
+
+		response.failure = { resp ->
+			println "Unexpected failure: ${resp.statusLine}"
+			return resp
+		}
+	}
+}
+
+ext.dumpResponse = { resp ->
+	println "contentType: ${resp.contentType}"
+	resp.headers.each { header ->
+		println "header: ${header.name} = ${header.value}"
+	}
+	if ( resp.getData() != null ) {
+		println "Data: ${resp.getData()}"
+	}
+	println "locale: ${resp.locale.displayName}"
+	
+}
+
+ext.updateInputs = { serverId, params=[:], instance='' ->
+	// Update Server inputs
+	if (instance == 'current') {
+		instance = "/${instance}"
+	}
+	println "Updating Inputs for ${serverId} using the following inputs:"
+	params.each { param ->
+		println "\t${param}"
+	}
+	
+	def update = rsapiPut("servers/${serverId}${instance}", params)
+	return update
+}
+
+ext.launchServer = { serverId ->
+	println "Launching server: ${serverId}"
+	def launch = rsapiPost("${api_path}/servers/${serverId}/launch")
+	watchServerStatus("${serverId}", ['stranded in booting','operational'], 240)
+}
+
+ext.watchServerStatus = { serverId, serverStates, chkcount=30, interval=10000 ->
+	println "Watching Server Status for serverId: ${serverId}"
+	def count = 0
+	def serverstate = 'unknown'
+	def laststate = serverstate
+	
+ 	while ( ! serverStates.contains(serverstate) && count < chkcount) {
+		sleep(interval)
+		def resp = rsapiGet("${api_path}/servers/${serverId}")
+		println "watchServerStatus: ${resp.status}"
+		if ( resp.status >= 200 && resp.status < 300 ) {
+			def server = resp.getData()
+			//dumpResponse(server)
+			if (server.state != null) {
+				serverstate = server.state
+				if (serverstate == laststate) {
+					print "."
+				} else {
+					laststate = serverstate
+					println "time: ${count * (interval/1000)} secs"
+					println "server.state: ${server.state}"
+					count = 0
+				}
+			} else {
+				print "X"
+			}
+		}
+		else {
+			println "Response Status: ${resp.status}"
+			//dumpResponse(statcheck)
+		}
+		count++
+	}
+	 // Did we just time out?
+	if ( ! serverStates.contains(serverstate) ) {
+		println "time: ${count * (interval/1000)} secs"
+		println "serverstate: ${serverstate}"
+		throw new GradleException("Server state of ${serverstate} is not in ${serverStates}.  Must have timed out!  Exiting...")
+	}
+	laststate
+}
+
+ext.terminateServer = { serverId ->
+	println "Terminating server: ${serverId}"
+	def terminate = rsapiPost("${api_path}/servers/${serverId}/terminate")
+	watchServerStatus("${serverId}", ['inactive'], 90)
+}
+
+ext.rsapiCheckStatus = { resp ->
+	def interval = 10000
+	println "${resp.headers.location}"
+	def statcheck = rsapiGet(resp.headers.location)
+	def status = statcheck.getData()
+	println "status.state = ${status.summary}"
+	def count = 0
+	def laststate = status.summary.split(":")[0]
+	while ( ! ['completed'].contains(status.summary.split(":")[0]) && count < 20) {
+		sleep(interval)
+		statcheck = rsapiGet(resp.headers.location)
+		println "rsapiCheckStatus: ${statcheck.status}"
+		if ( statcheck.status >= 200 && statcheck.status < 300 ) {
+			status = statcheck.getData()
+			if (status.summary.split(":")[0] == laststate) {
+				println "status: ${status.summary.split(":")[0]}"
+			} else {
+				laststate = status.summary.split(":")[0]
+				println "time: ${count * (interval/1000)} secs"
+				println "status: ${status.summary.split(":")[0]}"
+				count = 0
+			}
+		}
+		else {
+			println "Response Status: ${statcheck.status}"
+			dumpResponse(statcheck)
+		}
+		count = count + 1
+	}
+}
+
+ext.rsapiGetSecurityGroups = {
+	def groups = rsapiGet("ec2_security_groups").getData()
+	//println groovy.json.JsonOutput.prettyPrint(groups.toString())
+	return groups
+}
+
+ext.rsapiFindSecurityGroup = { sgroup1 ->
+	println "Finding Security Group: ${sgroup1}..."
+	def groups = rsapiGetSecurityGroups()
+	def group = null
+	groups.each { sgroup ->
+		if (sgroup.aws_group_name == sgroup1) { 
+			println "Group found: ${sgroup.aws_group_name}"
+			group = sgroup
+		}
+	}
+	return group
+}
+
+ext.rsapiCompareSecurityGroups = { prefix1, prefix2, groupname ->
+	println "Comparing security group ${prefix1}${groupname} with ${prefix2}${groupname}..."
+	def groups = rsapiGetSecurityGroups()
+	def group1 = ""
+	def group2 = ""
+	groups.each{ group ->
+		if (group.aws_group_name == "${prefix1}${groupname}") { group1 = group } 
+		if (group.aws_group_name == "${prefix2}${groupname}") { group2 = group } 
+	}
+	println "Group1 = ${group1}"
+	println "Group2 = ${group2}"
+	group1.aws_perms.each { perm ->
+		println "Perm: ${perm}"
+	}
+}
+
+ext.rsapiSyncSecurityGroups = { sgroup1, sgroup2 ->
+	println "Comparing security group ${sgroup1} with ${sgroup2}..."
+	def groups = rsapiGetSecurityGroups()
+	def group1 = ""
+	def group2 = ""
+	groups.each{ group ->
+		if (group.aws_group_name == sgroup1) { group1 = group } 
+		if (group.aws_group_name == sgroup2) { group2 = group } 
+	}
+	println "Group1 = ${group1}"
+	println "Group2 = ${group2}"
+	assert group1.aws_perms as Set != group2.aws_perms as Set
+}
+
+ext.rsapiCloneSecurityGroup = { sgroup1, sgroup2 ->
+	// TODO: Need to code this one
+	println "Cloning Security Group from ${sgroup1} to ${sgroup2}..."
+	println "NOT IMPLEMENTED YET!"
+}
+
+ext.rsapiXrefSecurityGroup = { sgroup1 ->
+	println "Xref Security Group: ${sgroup1}"
+	def group = rsapiFindSecurityGroup(sgroup1)
+	if ( group == null ) { 
+		println "Group not found: ${sgroup1}"
+		return null
+	}
+	
+	def csvlines = []
+	//println "Group Name: ${group.aws_group_name} - SG ID: ${group.href}"
+	def servers = rsapiGet("servers").getData()
+	servers.each { server ->
+		def serverId = server.href.split("/").last()
+		//println "serverId: ${serverId}, server nickname: ${server.nickname}" 
+		def settings = rsapiGet("servers/${serverId}/settings").getData()
+		if ( settings.'ec2-security-groups-href'.contains(group.href)) {
+			csvlines << server.nickname
+			println "Security Group found on Server: ${server.nickname}"
+		}
+		//println settings
+	}
+	println csvlines
+	return csvlines
+	//println group
+}
+
+ext.rsapiFindExecutable = { serverId, name, apply = 'boot' ->
+	println "Search server: ${serverId} - for exectuable: ${name}"
+	def server = rsapiGet("${api_path}/servers/${serverId}").getData()
+	def instanceRef
+	if (server.state == "inactive") {
+		instanceRef = findJson(server.links, "rel", "next_instance")
+	}
+	if (server.state == "operational") {
+		instanceRef = findJson(server.links, "rel", "current_instance")
+	}
+//	println "instanceRef: ${instanceRef.toString()}"
+	def instance = rsapiGet(instanceRef.href).getData()
+	def serverTemplateRef = findJson( instance.links, "rel", "server_template")
+//	println "serverTemplateRef: ${serverTemplateRef.toString()}"
+	def servertemplate = rsapiGet(serverTemplateRef.href).getData()
+	def executablesRef = findJson(servertemplate.links, "rel", "runnable_bindings")
+//	println "executablesRef: ${executablesRef.toString()}"
+	def serverExecutables = rsapiGet(executablesRef.href).getData()
+//	println "-"*40
+//	println groovy.json.JsonOutput.prettyPrint(serverExecutables.toString())
+//	//println "ServerExecutables: ${serverExecutables.toString()}"
+//	println "-"*40
+	def findexecs = serverExecutables.findAll { e ->
+//		println "-"*40
+//		println groovy.json.JsonOutput.prettyPrint(e.toString())
+//		println "-"*40
+//		println "e.sequence: ${e.sequence}"
+//		println "-"*40
+		if (e.recipe != null) {
+//			println "e.recipe: ${e.recipe}"
+			e.recipe == name && e.sequence == apply
+		} else {
+//			println "e.right_script.name: ${e.right_script.name}"
+			e.right_script.name == name && e.sequence == apply
+		}
+	}
+	// We only return the first executable found in case multipe were found.
+	return findexecs[0]
+}
