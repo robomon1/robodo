@@ -69,17 +69,22 @@ ext.jgitRepoCreate = { localPath ->
 }
 
 ext.jgitRepoClone = { remotePath, localPath, username, password ->
-	Git repo = Git.cloneRepository()
-		.setURI(remotePath)
-		.setDirectory(new File(localPath))
-		.setNoCheckout(true)
-		.setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
-		.call()
+	def jrepoPath = new File(localPath)
+	if (!jrepoPath.exits()) { 
+		Git repo = Git.cloneRepository()
+			.setURI(remotePath)
+			.setDirectory(new File(localPath))
+			.setNoCheckout(true)
+			.setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
+			.call()
+	} else {
+		// Load existing repo
+	}
 
 	return repo
 }
 
-ext.jgitCheckout = { Git repo, branch='master' ->
+ext.jgitCheckout = { Git repo, branch='remotes/origin/master' ->
 	repo.checkout().setName(branch).call()
 	return repo
 }

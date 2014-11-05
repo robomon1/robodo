@@ -1,8 +1,29 @@
 apply from: 'scripts/core.gradle'
 apply from: 'scripts/test.gradle'
+apply from: 'scripts/github.gradle'
+
+import java.io.File
+import java.io.IOException
+
+import org.eclipse.jgit.api.*
+import org.eclipse.jgit.api.errors.*
+import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
+import org.eclipse.jgit.internal.storage.file.FileRepository
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
 repositories {
   mavenCentral()
+}
+
+buildscript {
+        repositories {
+                mavenCentral()
+        }
+        dependencies {
+                classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
+                classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
+        }
 }
 
 task wrapper(type: Wrapper) {
@@ -24,7 +45,7 @@ task bootstrap << {
         println "username = ${username}"
         //println "password = ${password}"
 	
-	Git repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
+	def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
 	repo = jgitCheckout(repo)
 }
 	
