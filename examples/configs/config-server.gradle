@@ -1,0 +1,11 @@
+configs {
+	server {
+		description = 'DEV Test Server'
+		manifest = '../../../puppet/manifess/site.pp'
+		factors {
+			is_all_in_one = true
+			idp_env = 'dev'
+			rapture_server_class = 'rapturerunner'
+		}
+	}
+}
