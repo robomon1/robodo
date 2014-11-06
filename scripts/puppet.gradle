@@ -1,72 +1,29 @@
-import com.sun.net.httpserver.Headers
-import org.eclipse.egit.github.core.*
-import org.eclipse.egit.github.core.client.*
-import org.eclipse.egit.github.core.service.*
-import groovyx.net.http.RESTClient
-import groovyx.net.http.Method
-import groovyx.net.http.ContentType
-import groovyx.net.http.ParserRegistry
-
 import java.io.File
 import java.io.IOException
-
-import org.eclipse.jgit.api.*
-import org.eclipse.jgit.api.errors.*
-import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
-import org.eclipse.jgit.internal.storage.file.FileRepository
-import org.eclipse.jgit.lib.Repository
 
 buildscript {
 	repositories {
 		mavenCentral()
 	}
 	dependencies {
-		classpath 'org.codehaus.groovy.modules.http-builder:http-builder:0.5.2'
-		classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
 		classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
 	}
 }
 
-GitHubClient ghclient = null
-
-ext.ghClient = {
-	
-	if (ghclient == null) {
-		ghclient = new GitHubClient();
-		ghclient.setOAuth2Token("7a81945a129caeb9278316f56ed0fb30c56fc12a");
+ext.setFacters = { facters ->
+	//def factPath = "puppet config print factpath".execute()
+	//factPath.waitFor() 
+	//println "${factPath.text}"
+	def factdDir = new File('/etc/facter/facts.d')
+	factdDir.mkdirs()
+	def facterfile = new File('/etc/facter/facts.d/serverfacts.txt')
+	if (facterfile.exists()) {
+		facterfile.delete()
 	}
-
-}
-
-ext.ghRepos = {
-	//ghClient();  // Make sure we are logged in first
-	
-	RepositoryService service = new RepositoryService();
-	for (Repository repo : service.getRepositories("robomon1"))
-		println "${repo.getName()} Watchers: ${repo.getWatchers()}"
-	
-}
-
-ext.ghPullRequests = {
-	ghClient();  // Make sure we are logged in first
-	
-	RepositoryService service = new RepositoryService();
-	PullRequestService prService = new PullRequestService();
-	
-	for (Repository repo : service.getRepositories("robomon1")) {
-		println "Getting pull requests for: ${repo.getName()}"
-		for (PullRequest pr : prService.getPullRequests((IRepositoryIdProvider) repo, "open") ) {
-			println "PullRequest: ${pr.getNumber()} - ${pr.getBody()}"
-		}
+	facterfile.createNewFile()
+	facters.each { key, value ->
+		//facterfile << "FACTER_$key=$value\n"
+		facterfile << "$key=$value\n"
 	}
-	
 }
 
-ext.jgitRepoCreate = { localPath ->
-	Repository newRepo = new FileRepository(localPath + "/.git")
-	newRepo.create()
-}
-
-ext.jgitRepoClone = { remotePath, localPath ->
-	Git.cloneRepository().setURI(remotePath).setDirectory(new File(localPath)).setNoCheckout(false).call()
-}

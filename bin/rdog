@@ -1,0 +1,4 @@
+#!/bin/bash
+
+/opt/robodo/gradlew -b /opt/robodo/build.gradle $@
+

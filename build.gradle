@@ -1,6 +1,7 @@
 apply from: 'scripts/core.gradle'
 apply from: 'scripts/test.gradle'
 apply from: 'scripts/github.gradle'
+apply from: 'scripts/puppet.gradle'
 
 import java.io.File
 import java.io.IOException
@@ -46,7 +47,7 @@ task bootstrap << {
         //println "password = ${password}"
 	
 	def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
-	repo = jgitCheckout(repo)
+	repo = jgitCheckout(repo, checkout)
 }
 	
 // Do a re-deploy of the product.
@@ -72,3 +73,24 @@ task getconfig << {
 //	getServerConfig("http:///folder/test")
 	getServerConfig("https://api.github.com/repos/robomon1/roboactive")
 }
+
+task papply << {
+	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
+	def server = getOption('server') // Server name
+
+        def configs1 = "/opt/repoclone/puppet/${env}/${server}/config-server.gradle"
+        def configs2 = "/opt/repoclone/puppet/${env}/${server}/config-env.gradle"
+        def mcfg = mergeConfigs(configs1, configs2)
+        println "mcfg = ${mcfg}"
+        def environment = mcfg['environment']
+        println "${environment.hiera_yaml}"
+        println "${environment.modules_path}"
+        def servercfg = mcfg['server']
+        println "${servercfg.manifest}"
+	//servercfg.factors.flatten().each { key, value ->
+	//	println "$key=$value"
+	//}
+	setFacters(servercfg.factors.flatten())
+}
+
+	
