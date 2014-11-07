@@ -34,7 +34,7 @@ ext.ghClient = {
 	
 	if (ghclient == null) {
 		ghclient = new GitHubClient();
-		ghclient.setOAuth2Token("7a81945a129caeb9278316f56ed0fb30c56fc12a");
+		ghclient.setOAuth2Token("10bfe6d95c7ab0f619441b5e147a412e7f4efa5");
 	}
 
 }
@@ -48,19 +48,29 @@ ext.ghRepos = {
 	
 }
 
-ext.ghPullRequests = {
-	ghClient();  // Make sure we are logged in first
+ext.ghPullRequests = { username, password, owner, repo  ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	PullRequestService service = new PullRequestService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def prs = []
 	
-	RepositoryService service = new RepositoryService();
-	PullRequestService prService = new PullRequestService();
-	
-	for (Repository repo : service.getRepositories("robomon1")) {
-		println "Getting pull requests for: ${repo.getName()}"
-		for (PullRequest pr : prService.getPullRequests((IRepositoryIdProvider) repo, "open") ) {
-			println "PullRequest: ${pr.getNumber()} - ${pr.getBody()}"
+	try {
+		prs = service.getPullRequests(repoId, "open")
+		println "${repo} Pull Requests: ${prs.size()}"
+		prs.each { pr ->
+			println "${pr.getUser().getLogin()} : ${pr.getHtmlUrl()}"
 		}
+	} catch (Exception e) {
+		prs = []
+		println "${repo} Pull Requests: 0"
 	}
 	
+	return prs
 }
 
 ext.jgitRepoCreate = { localPath ->

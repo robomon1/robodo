@@ -53,7 +53,12 @@ task testGithubRepos << {
 }
 
 task testGithubPullRequests << {
-	ghPullRequests()
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureNew")
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureFS")
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "Vienna")
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureApps")
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "IDP")
+	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "ViennaAps")
 }
 
 task testRepoCreate << {
