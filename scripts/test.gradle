@@ -1,5 +1,7 @@
 import java.awt.GraphicsConfiguration.DefaultBufferCapabilities;
 
+def repolist = [ 'Incapture' : ['RaptureNew', 'RaptureFS', 'Vienna', 'RaptureApps', 'IDP', 'ViennaApps'] ]
+
 task testLoginOAuth << {
 	def resp = rsapiLoginOAuth()
 	println groovy.json.JsonOutput.prettyPrint(resp.data.toString())
@@ -52,13 +54,49 @@ task testGithubRepos << {
 	ghRepos()
 }
 
+task testGithubTag << {
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			def tag = ghTag("${username}", "${password}", "${repoowner}", "${repo}", "${release}")
+		}
+	}	
+}
+
 task testGithubPullRequests << {
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureNew")
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureFS")
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "Vienna")
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "RaptureApps")
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "IDP")
-	ghPullRequests("710bfe6d95c7ab0f619441b5e147a412e7f4efa5", "x-oauth-basic", "Incapture", "ViennaAps")
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+	
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			ghPullRequests("${username}", "${password}", "${repoowner}", "${repo}")
+		}
+	}	
+}
+
+task testGithubCommits << {
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+	
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			ghCommits("${username}", "${password}", "${repoowner}", "${repo}")
+		}
+	}	
 }
 
 task testRepoCreate << {
@@ -66,444 +104,7 @@ task testRepoCreate << {
 }
 
 task testRepoClone << {
-        def remoteRepo = getOption("remoteRepo", "https://github.com/robomon1/robodo.git")
-        def localRepo = getOption("localRepo", "${System.env.HOME}/tmp/testrepo")
+  def remoteRepo = getOption("remoteRepo", "https://github.com/robomon1/robodo.git")
+  def localRepo = getOption("localRepo", "${System.env.HOME}/tmp/testrepo")
 	jgitRepoClone(remoteRepo, localRepo) 
-}
-
-// Old stuff starts here ----
-task testDeployment << {
-	def deploymentId = getOption('deploymentId', '413527001') // qa deployment is the default.
-	println "-"*40
-	println "api_path = ${api_path}"
-	println "deploymentId = ${deploymentId}"
-	println "-"*40
-	println "-"*40
-	println "Getting ${api_path}/deployments/${deploymentId}"
-	println "-"*40
-	def deployment = rsapiGet("${api_path}/deployments/${deploymentId}").getData()
-	println ""
-	println groovy.json.JsonOutput.prettyPrint(deployment.toString())
-
-	println "-"*40
-	println "Servers..."
-	println "-"*40
-	def servers
-	if (api_version == "1.0") {
-		servers = deploy.servers
-	} 
-	else {
-//		def link = deployment.links.find { serverlink ->
-//			serverlink.rel == "servers"
-		def link = findJson( deployment.links, "rel", "servers")
-		println "${link.href}"
-		servers = rsapiGet(link.href).getData()
-		println groovy.json.JsonOutput.prettyPrint(servers.toString())
-	}
-	
-	//deployment.servers.each { server ->
-	servers.each { server ->
-		//println "${server.nickname}"
-		println "${server.name}"
-		if ( server.state == "operational" ) {
-			def instanceRef = findJson( server.links, "rel", "current_instance")
-			def instance = rsapiGet(instanceRef.href).getData()
-			println groovy.json.JsonOutput.prettyPrint(instance.toString())
-//			def serverTemplateId = refs[refs.length-1]
-//			println "serverTempateId : ${serverTemplateId}"
-//			def serverTemplate = rsapiGet("server_templates/${serverTemplateId}").getData()
-//			println "serverTemplate: ${serverTemplate}"
-//			println "-"*40
-//			def servertemplateexecs = rsapiGet("server_templates/${serverTemplateId}/executables").getData()
-//			println groovy.json.JsonOutput.prettyPrint(servertemplateexecs.toString())
-			println "-"*40
-		}
-	}
-}
-
-task testServer << {
-	def serverId = getOption('serverId', '875673001') // qa admin is the default.
-//	def serverId = getOption('serverId', '939121001') // qa admin is the default.
-	println "-"*40
-	println "api_path = ${api_path}"
-	println "serverId = ${serverId}"
-	println "-"*40
-	println "-"*40
-	println "Getting ${api_path}/servers/${serverId}"
-	println "-"*40
-	def server = rsapiGet("${api_path}/servers/${serverId}").getData()
-	println ""
-	println groovy.json.JsonOutput.prettyPrint(server.toString())
-	println "-"*40
-	def serverRef
-	if (server.state == "inactive") {
-		serverRef = findJson(server.links, "rel", "next_instance")
-	}
-	if (server.state == "operational") {
-		serverRef = findJson(server.links, "rel", "current_instance")
-	}
-	println groovy.json.JsonOutput.prettyPrint(serverRef.toString())
-	println "-"*40
-	
-	def settings = rsapiGet(serverRef.href).getData()
-	println groovy.json.JsonOutput.prettyPrint(settings.toString())
-	println "-"*40
-
-	if ( settings.public_ip_addresses.size() > 0 ) {
-		settings.public_ip_addresses.each { ip ->
-			println "IP Address (PUB): ${ip}"
-		}
-	}
-	if ( settings.private_ip_addresses.size() > 0 ) {
-		settings.private_ip_addresses.each { ip ->
-			println "IP Address (PRI): ${ip}"
-		}
-	}
-}
-
-task testServerTemplate << {
-	def serverTemplateId = getOption('serverTemplateId', '319187001') // WFX Tomcat7 App Server (v13.5) rev 0 is the default.
-	println "-"*40
-	def servertemplate = rsapiGet("${api_path}/server_templates/${serverTemplateId}").getData()
-	println groovy.json.JsonOutput.prettyPrint(servertemplate.toString())
-	println "-"*40
-	def executablesRef = findJson(servertemplate.links, "rel", "runnable_bindings")
-	def servertemplateexecs = rsapiGet(executablesRef.href).getData()
-	println groovy.json.JsonOutput.prettyPrint(servertemplateexecs.toString())
-	println "-"*40
-}
-
-// TODO: convert to API 1.5
-task testRunRecipe << {
-	def serverId = getOption('serverId', '875673001') // VPC11-Admin-1 is the default.
-	def recipe = getOption('recipe', 'sys::do_reconverge_list_disable') // sys::do_reconverge_list_enable is the default.
-	def params = [:]
-	params << [ "recipe_name" : "${recipe}" ]
-	
-	def server = rsapiGet("${api_path}/servers/${serverId}").getData()
-	println "-"*40
-	println groovy.json.JsonOutput.prettyPrint(server.toString())
-	println "-"*40
-	def instanceRef = findJson( server.links, "rel", "current_instance")
-	println instanceRef.toString()
-	println "-"*40
-//	println groovy.json.JsonOutput.prettyPrint(instance.toString())
-//	println "-"*40
-	def resp = rsapiPost("${instanceRef.href}/run_executable", params)
-	println "-"*40
-//	println "${resp.headers.location}"
-//	println "-"*40
-	rsapiCheckStatus(resp)		
-}
-
-task testConfigInputs << {
-	println "-"*40
-	def env = "vpc11"
-	def version = "1.0"
-	def revision = "0000"
-	def config = getConfig("wellfxadmin")
-	
-	config['inputs'].each { i ->
-		def input = i.value
-		println "name: ${input.'name'}"
-		println "tvalue: ${input.'tvalue'}"
-		def newvalue = input.'tvalue'
-		newvalue = newvalue.replaceAll(~('@version@'), { version })
-		newvalue = newvalue.replaceAll(~('@revision@'), { revision }) 
-		println "value: ${newvalue}"
-	}
-}
-	
-task testSearchExecutables << {
-	def env = "vpc11"
-	def config = getConfig("wellfxadmin")
-	
-	println "-"*40
-	config[env].servers.each { serverName, serverId ->
-		println "ServerName: ${serverName}, ServerID: ${serverId}"
-
-		def testexec = rsapiFindExecutable( serverId, config['deployRecipes']['recipe1']['name'])
-//		println "testexec: ${testexec}"
-		if (testexec != null) {
-			println "Found Recipe:"
-			println groovy.json.JsonOutput.prettyPrint(testexec.toString())
-		}
-//		println "testexec: ${testexec}"
-		testexec = rsapiFindExecutable( serverId, config['deployScripts']['script1']['name'])
-		if (testexec != null) {
-			println "Found Rightscript:"
-			println groovy.json.JsonOutput.prettyPrint(testexec.toString())
-		}
-
-		println "-"*40
-	}
-}
-
-// TODO: convert to API 1.5 (or delete?)
-task testSearchParams << {
-	println "-"*40
-	def env = "tst"
-	def config = getConfig("wellfxadmin")
-	
-	// App1 (Chef) = 405473001, App3 (Rightscripts) = 514753001
-	def serverIds = [ "405473001" ]
-	serverIds.each { serverId ->
-		println "Server: ${serverId}"
-		println "-"*40
-		def server = rsapiGet("servers/${serverId}").getData()
-		def serverTemplateId = server.server_template_href.split("/").last()
-		def serverExecutables = rsapiGet("server_templates/${serverTemplateId}/executables").getData()
-		serverExecutables.each { executable ->
-			// When we are dealing with Rightscripts the recipe is actually set with the text null
-			// but right_script isn't set at all and is actually a null value.  So we catch the "null" recipe and don't use it
-			if (executable.recipe != null && executable.recipe != "null") {
-				println "${executable.recipe}"
-			}
-			if (executable.right_script != null) {
-				println "${executable.right_script.name}"
-			}
-		}
-		println "-"*40
-		
-		println "FindAll: ${config['deployRecipes']['recipe1']['name']}"
-		def execs = serverExecutables.findAll { e -> e.recipe.toString() == "${config['deployRecipes']['recipe1']['name']}" }
-		execs.each { executable ->
-			println "Found: ${executable['recipe']}"
-		}	
-		println "Find: ${config['deployScripts']['script1']['name']}"
-		def findexec = serverExecutables.find { e -> e.recipe.toString() == "${config['deployScripts']['script1']['name']}" }
-		if (findexec != null) {
-			println "Found: ${findexec?.recipe}"
-		}
-		println "-"*40
-	}
-	/*
-	def scriptInput = 'APPLICATION_CODE_PACKAGE'
-	def recipeInput = 'repo/default/prefix'
-	def server = rsapiGet("servers/${serverId}").getData()
-	println groovy.json.JsonOutput.prettyPrint(server.toString())
-	println "-"*40
-	server.parameters.each { param ->
-		if ( param.name == recipeInput ) {
-			println "Match: ${param.name}, ${param.value}"
-		} else {
-			println "Ignore: ${param.name}, ${param.value}"
-		}
-	}
-	println "-"*40
-	*/
-}
-
-task testContains << {
-	def status = 'operational'
-	def product = 'wellfx'
-	assert ['operational','stranded'].contains(status)
-	assert ['wellfx'].contains(product)
-}
-
-task testCheckServerId << {
-	def product = 'wellfx'
-	def env = 'vpc11'
-	def qaServerId = '879557001'  // Correct qa serverId
-	def prdServerId = '925430001'  // Production server which isn't in qa env
-
-	def serverfound = checkServerId("${product}", "${env}", "${qaServerId}")
-	println "Server found (should have a server): ${serverfound}" 
-
-	serverfound = checkServerId("${product}", "${env}", "${prdServerId}")
-	println "Server found: ${serverfound}" 
-}
-
-// TODO: convert to API 1.5 (or delete?)
-task testrsapi << {
-	println "-"*40
-	println "Getting deployments/244992001..."
-	println "-"*40
-	def deployment = rsapiGet("deployments/244992001").getData()
-	println ""
-	println groovy.json.JsonOutput.prettyPrint(deployment.toString())
-
-	println "-"*40
-	println "Servers..."
-	println "-"*40
-	deployment.servers.each { server ->
-		println server.nickname
-	}
-	
-	def server = rsapiGet("servers/398422001").getData()
-	println groovy.json.JsonOutput.prettyPrint(server.toString())
-	
-	def elbs = rsapiGet('clouds/1/component_elastic_load_balancers').getData()
-	println groovy.json.JsonOutput.prettyPrint(elbs.toString())
-}
-
-task testUpdateInputs << {
-	def env = getOption('env', 'tst') // tst environment is the default.
-	def product = getOption('product', 'wellfx') // wellfx is the default
-	def version = '1.0' // getOption('version', '1.0') gradle always has a project property called version so a default value won't work
-	def revision = getOption('revision', '0000') // 0000 is the default as that revision probably doesn't exist
-	def server = getOption('server', 'all') //server id or all
-
-	def config = getConfig(product)
-	def servers = [:]
-	
-	if ( server == "all" ) {
-		println "Testing all servers in config[${product}]: ${config[env].servers}"
-		servers << config[env].servers
-	}
-	else {
-		if (! checkServerId("${product}", "${env}", "${server}")) {
-			def emsg = """server ${server} is not part of ${product}/${env}.
-	Try updating configs.gradle or command line"""
-			throw new GradleException(emsg)
-		}
-		
-		println "Testing a single server: [ serverId : ${server}]"
-		servers << [ serverId : "${server}"]
-	}
-	
-	servers.each { serverName, serverId ->
-		// Get the server
-		def rsServer = rsapiGet("${api_path}/servers/${serverId}").getData()
-		def instanceRef = findJson( rsServer.links, "rel", "next_instance" )
-		def instance = rsapiGet(instanceRef.href).getData()
-		def inputsRef = findJson( instance.links, "rel", "inputs" )
-		println "inputsRef: ${inputsRef.toString()}"
-		def inputs = rsapiGet(inputsRef.href).getData()
-		//println groovy.json.JsonOutput.prettyPrint(inputs.toString())
-		
-		// Set all the inputs up first
-		println "Setting up inputs"
-		def params = [:]
-		config['inputs'].each { i ->
-			def input = i.value
-			def newvalue = input.'tvalue'
-			def fp = inputs.find{ ix -> ix.name == input.name }
-			if ( fp != null ) {
-				newvalue = newvalue.replaceAll(~('@version@'), { version })
-				newvalue = newvalue.replaceAll(~('@revision@'), { revision })
-				println "Updating: ${input.name}, ${newvalue}"
-				params << [ "inputs[${input.name}]" : "${newvalue}" ]
-			}
-		}
-		println "params: ${params.toString()}"
-		rsapiPut("${inputsRef.href}/multi_update", params)
-	}
-}
-
-task testTerminateServer << {
-	def serverId = getOption('serverId', '392572001') //server id or all
-	terminateServer("${serverId}")
-}
-
-task testLaunchServer << {
-	def serverId = getOption('serverId', '392572001') //server id or all
-	launchServer("${serverId}")
-}
-
-task testCheckUrl << {
-	def resp = checkUrl("http://ec2-107-20-41-154.compute-1.amazonaws.com", "/service/auth/healthCheck")
-}
-
-task testJenkinsGet << {
-	def json = jenkinsGet('api/json')
-	println groovy.json.JsonOutput.prettyPrint(json.toString())
-}
-
-task testJiraGet << {
-	def issue = "OPS-19"
-	println "Getting issue: ${issue}"
-	def params = [expand: 'transitions']
-	def json = jiraapiGet("issue/${issue}", params)
-	println groovy.json.JsonOutput.prettyPrint(json.toString())
-}
-
-task testJiraCreateIssue << {
-	def issuetype = 'Deployment Request'
-	def key = 'OPS'
-	def env = 'qa'
-	def product = 'wellfx'
-	def version = '1.0'
-	def revision = '111'
-
-	def description = """Deployed:
-Environment: ${env}
-Product: ${product}
-Version: ${version}
-Revision: ${revision}
-"""
-	def fields = [
-		issuetype: "${issuetype}",
-		key: "${key}",
-		env: "${env}",
-		summary: "Deployed ${product}-${version}-r${revision} to ${env}",
-		description: "${description}",
-		component: "${product}",
-		version: "${version}",
-		revision: "${revision}"
-		]
-	
-	def resp = jiraapiCreateIssue(fields)
-}
-
-task testExtProp1 << {
-	// We have to use project. to set this ext.property at the project level
-	// instead of the task level
-	project.ext.prop1 = 'test'
-}
-
-task testExtProp2 << {
-	if (project.hasProperty('prop1')) {
-		println "${prop1}"
-	}
-}
-
-task testGitConnect << {
-	def repopath = getOption('repopath', '/Users/robo/git')
-	def repo = getOption('repo', 'ops')
-	gitConnect(repopath, repo)
-}
-
-task testCsvRead << {
-	testCsv(new FileReader(file('scripts/test.csv')))
-}
-
-task testHaproxyCheckStatus << {
-	haproxyCheckStatus("qa.well-fx.net", "i-36788645", "virtual1")
-}
-
-task testHaproxyDeregister << {
-	def env = "vpc11"
-	def product = "openfire" 
-	def serverId = "357653001"
-	haproxyDeregister("${serverId}")
-}
-
-task testHaproxyRegister << {
-	def serverId = "357653001"
-	haproxyRegister("${serverId}")
-}
-
-task testCsvSecurityGroups << {
-	//println "-"*40
-	//println "Getting Security Groups..."
-	//println "-"*40
-	def groups = rsapiGet("ec2_security_groups").getData()
-	//println groovy.json.JsonOutput.prettyPrint(groups.toString())
-	println "name,protocol,from,to,cidr/group"
-	groups.findAll{ it.aws_group_name =~ /^(?!AWS-OpsWorks.*)/ }.sort{ it.aws_group_name }.each { group ->
-		group.aws_perms.each { perm ->
-			println "${group.aws_group_name},${perm.protocol},${perm.from_port},${perm.to_port},${perm.cidr_ips ?: perm.group}"
-		}
-		//println "Group Name: ${group.aws_group_name}"
-		//println groovy.json.JsonOutput.prettyPrint(group.toString())
-	} 	
-}
-
-task testListSecurityGroups << {
-	//println "-"*40
-	//println "Getting Security Groups..."
-	//println "-"*40
-	def groups = rsapiGet("ec2_security_groups").getData()
-	println groovy.json.JsonOutput.prettyPrint(groups.toString())
 }

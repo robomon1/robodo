@@ -64,6 +64,14 @@ ext.ghPullRequests = { username, password, owner, repo  ->
 		println "${repo} Pull Requests: ${prs.size()}"
 		prs.each { pr ->
 			println "${pr.getUser().getLogin()} : ${pr.getHtmlUrl()}"
+			PullRequestMarker prmbase = pr.getBase()
+			println "Base ref: ${prmbase.getRef()}"
+			println "Base label: ${prmbase.getLabel()}"
+			println "Base sha: ${prmbase.getSha()}"
+			PullRequestMarker prmhead = pr.getHead()
+			println "Head ref: ${prmhead.getRef()}"
+			println "Head label: ${prmhead.getLabel()}"
+			println "Head sha: ${prmhead.getSha()}"
 		}
 	} catch (Exception e) {
 		prs = []
@@ -71,6 +79,64 @@ ext.ghPullRequests = { username, password, owner, repo  ->
 	}
 	
 	return prs
+}
+
+ext.ghTag = { username, password, owner, repo, tagname  ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	RepositoryService service = new RepositoryService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def tags = []
+	def searchtag = null
+	
+	try {
+		tags = service.getTags(repoId)
+		println "${repo} Tags: ${tags.size()}"
+		tags.each { tag ->
+			if (tag.getName().contains(tagname)) {
+				searchtag = tag
+				println "Tag ${tagname} found : ${tag.getName()}"
+			} else {
+//				println "Tag ${tagname} not found : ${tag.getName()}"
+			}
+		}
+	} catch (RequestException re) {
+		println "RequestException: ${re.getMessage()}"
+	} catch (Exception e) {
+		println "Exception: ${e.printStackTrace()}"
+	}
+	
+	return searchtag
+}
+
+ext.ghCommits = { username, password, owner, repo, sha  ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	CommitService service = new CommitService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def commits = []
+	
+	try {
+		commits = service.getCommits(repoId, sha)
+		println "${repo} Commits: ${commits.size()}"
+		commits.each { commit ->
+			println "${commit.getAuthor().getName()} : ${commit.getMessage()}"
+			println "${commit.getCommitter().getName()}"
+		}
+	} catch (Exception e) {
+		commits = []
+		println "${repo} Commits: 0"
+	}
+	
+	return commits
 }
 
 ext.jgitRepoCreate = { localPath ->
