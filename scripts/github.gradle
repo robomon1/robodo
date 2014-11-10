@@ -64,6 +64,7 @@ ext.ghPullRequests = { username, password, owner, repo  ->
 		println "${repo} Pull Requests: ${prs.size()}"
 		prs.each { pr ->
 			println "${pr.getUser().getLogin()} : ${pr.getHtmlUrl()}"
+      println "Assignee: ${pr.getAssignee().getLogin()}"
 			PullRequestMarker prmbase = pr.getBase()
 			println "Base ref: ${prmbase.getRef()}"
 			println "Base label: ${prmbase.getLabel()}"
@@ -72,6 +73,11 @@ ext.ghPullRequests = { username, password, owner, repo  ->
 			println "Head ref: ${prmhead.getRef()}"
 			println "Head label: ${prmhead.getLabel()}"
 			println "Head sha: ${prmhead.getSha()}"
+      try {
+			  println "Comments: ${pr.getComments().size()}"
+      } catch (Exception e2) {
+        println "Comments: 0"
+      }
 		}
 	} catch (Exception e) {
 		prs = []
