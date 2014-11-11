@@ -75,11 +75,13 @@ task testGithubPullRequests << {
 	def username = config.github.username
 	def password = config.github.password
 	
+	def prState = getOption('prState', "open")
+	def prSize = getOption('prSize', "0")
 	def release = getOption('release', "20141107212847")
 	
 	repolist.each { repoowner, repos ->
 		repos.each { repo ->
-			ghPullRequests("${username}", "${password}", "${repoowner}", "${repo}")
+			ghPullRequests("${username}", "${password}", "${repoowner}", "${repo}", "${prState}", 0, prSize.toInteger())
 		}
 	}	
 }

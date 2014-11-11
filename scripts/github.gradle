@@ -48,7 +48,34 @@ ext.ghRepos = {
 	
 }
 
-ext.ghPullRequests = { username, password, owner, repo  ->
+ext.printPullRequest = { PullRequest pr ->
+	println "${pr.getUser()?.getLogin()} : ${pr.getHtmlUrl()}"
+	println "State: ${pr.getState()}"
+	if (pr.isMergeable()) {
+		println "isMergeable?: true"
+	} else {
+		println "isMergeable?: false"
+	}
+	if (pr.isMerged()) {
+		println "isMerged?: true"
+	} else {
+		println "isMerged?: false"
+	}
+	println "Merged By: ${pr.getMergedBy()?.getlogin()}"
+	println "Merged At: ${pr.getMergedAt()}"
+	println "Assignee: ${pr.getAssignee()?.getLogin()}"
+	PullRequestMarker prmbase = pr.getBase()
+	println "Base ref: ${prmbase.getRef()}"
+	println "Base label: ${prmbase.getLabel()}"
+	println "Base sha: ${prmbase.getSha()}"
+	PullRequestMarker prmhead = pr.getHead()
+	println "Head ref: ${prmhead.getRef()}"
+	println "Head label: ${prmhead.getLabel()}"
+	println "Head sha: ${prmhead.getSha()}"
+	println "Comments: ${pr.getComments()}"
+}
+
+ext.ghPullRequests = { username, password, owner, repo, state="open", start=1, size=100 ->
 	// owner - account (ex: robomon1)
 	// repo - just the name of the repo (ex: robodo)
 	// username - login name or oauth2 token
@@ -60,28 +87,30 @@ ext.ghPullRequests = { username, password, owner, repo  ->
 	def prs = []
 	
 	try {
-		prs = service.getPullRequests(repoId, "open")
+		if (size == 0) {
+			prs = service.getPullRequests(repoId, state)
+		} else {
+			PageIterator priterator = service.pagePullRequests(repoId, state, start, size)
+			if (priterator.hasNext()) {
+				println "Getting next..."
+				def prit = priterator.next()
+//				println "PRIT Class: ${prit.getClass()}"
+				prit.each { pr ->
+//					println "PR Class: ${pr.getClass()}"
+					if (pr != null) {
+						prs << pr
+					}
+				}
+			}
+		}
 		println "${repo} Pull Requests: ${prs.size()}"
 		prs.each { pr ->
-			println "${pr.getUser().getLogin()} : ${pr.getHtmlUrl()}"
-      println "Assignee: ${pr.getAssignee().getLogin()}"
-			PullRequestMarker prmbase = pr.getBase()
-			println "Base ref: ${prmbase.getRef()}"
-			println "Base label: ${prmbase.getLabel()}"
-			println "Base sha: ${prmbase.getSha()}"
-			PullRequestMarker prmhead = pr.getHead()
-			println "Head ref: ${prmhead.getRef()}"
-			println "Head label: ${prmhead.getLabel()}"
-			println "Head sha: ${prmhead.getSha()}"
-      try {
-			  println "Comments: ${pr.getComments().size()}"
-      } catch (Exception e2) {
-        println "Comments: 0"
-      }
+			printPullRequest(pr)
 		}
 	} catch (Exception e) {
 		prs = []
 		println "${repo} Pull Requests: 0"
+		println e.getMessage()
 	}
 	
 	return prs
@@ -181,4 +210,4 @@ ext.jgitCheckout = { Git repo, branch='master' ->
 
 	return repo
 }
-	
+
