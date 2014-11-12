@@ -46,8 +46,13 @@ task bootstrap << {
         println "username = ${username}"
         //println "password = ${password}"
 	
-	def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
-	repo = jgitCheckout(repo, checkout)
+	// git clone --depth=1 --branch=vrefactor2 git@github.com:robomon1/RaptureDevOps.git repotest
+	exec {
+		executable "git"
+		args "clone", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "/tmp/repoclone"
+	}
+	//def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
+	//repo = jgitCheckout(repo, checkout)
 }
 	
 // Do a re-deploy of the product.
