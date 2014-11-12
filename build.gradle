@@ -18,13 +18,13 @@ repositories {
 }
 
 buildscript {
-        repositories {
-                mavenCentral()
-        }
-        dependencies {
-                classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
-                classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
-        }
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
+    classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
+  }
 }
 
 task wrapper(type: Wrapper) {
@@ -35,61 +35,45 @@ task bootstrap << {
 	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
 	def server = getOption('server') // Server name
 	def remoteRepo = getOption('remoteRepo') // Remote Git Repository
+	def localRepo = getOption('localRepo', '/opt/localrepo') // Local Repository path
+	def puppetPath = getOption('puppetPath', 'puppet') // Path inside repo where puppet files are
 	def checkout = getOption('checkout', 'master') // Branch, Tag, Commit
 	def username = getOption('username') // Git username
 	def password = getOption('password') // Git password
 
-        println "env = ${env}"
-        println "server = ${server}"
-        println "remoteRepo = ${remoteRepo}"
-        println "checkout = ${checkout}"
-        println "username = ${username}"
-        //println "password = ${password}"
+  println "env = ${env}"
+  println "server = ${server}"
+  println "remoteRepo = ${remoteRepo}"
+  println "localRepo = ${localRepo}"
+  println "checkout = ${checkout}"
+  println "username = ${username}"
+  //println "password = ${password}"
 	
-	def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
-	repo = jgitCheckout(repo, checkout)
+	// git clone --depth=1 --branch=vrefactor2 git@github.com:robomon1/RaptureDevOps.git repotest
+	exec {
+		executable "git"
+		args "clone --depth=1 --branch=${checkout} ${remoteRepo} ${localRepo}"
+	}
+	//def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
+	//repo = jgitCheckout(repo, checkout)
 }
 	
-// Do a re-deploy of the product.
-task getconfig << {
-	// Fetch the parameters
-	def env = getOption('env') // Environment such as dev, qa, prd
-	def product = getOption('product') // Product such as wellfx, wellfxadmin, solr, chat
-	def version = getOption('version') // Version
-	def revision = getOption('revision') 	// Revision
-	def server = getOption('server') //server id
-	
-	println "env = ${env}"
-	println "product = ${product}"
-	println "version = ${version}"
-	println "revision = ${revision}"
-	println "server = ${server}"
-	
-	def config = getConfig(product)
-	println "config = ${config}"
-
-	getServerConfig("git:///folder/test")
-	getServerConfig("file:///folder/test")
-//	getServerConfig("http:///folder/test")
-	getServerConfig("https://api.github.com/repos/robomon1/roboactive")
-}
-
 task papply << {
 	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
 	def server = getOption('server') // Server name
 
-        def configs1 = "/opt/repoclone/puppet/${env}/${server}/config-server.gradle"
-        def configs2 = "/opt/repoclone/puppet/${env}/${server}/config-env.gradle"
-        def mcfg = mergeConfigs(configs1, configs2)
-        println "mcfg = ${mcfg}"
-        def environment = mcfg['environment']
-        println "${environment.hiera_yaml}"
-        println "${environment.modules_path}"
-        def servercfg = mcfg['server']
-        println "${servercfg.manifest}"
-	//servercfg.factors.flatten().each { key, value ->
-	//	println "$key=$value"
-	//}
+  def configs1 = "/opt/repoclone/puppet/${env}/${server}/config-server.gradle"
+  def configs2 = "/opt/repoclone/puppet/${env}/${server}/config-env.gradle"
+  def mcfg = mergeConfigs(configs1, configs2)
+  println "mcfg = ${mcfg}"
+  def environment = mcfg['environment']
+  println "${environment.hiera_yaml}"
+  println "${environment.modules_path}"
+  def servercfg = mcfg['server']
+  println "${servercfg.manifest}"
+
+	//puppet apply --modulepath=../../modules --hiera_config=../../hiera.yaml --environment=dev ../../manifests/site.pp
+	
 	setFacters(servercfg.factors.flatten())
 }
 

@@ -110,3 +110,9 @@ task testRepoClone << {
   def localRepo = getOption("localRepo", "${System.env.HOME}/tmp/testrepo")
 	jgitRepoClone(remoteRepo, localRepo) 
 }
+
+task testPuppetGetFacters << {
+	def facter = getOptions('facter', 'all')
+	def facters = getFacters(facter)
+	println "Facters: ${facters}"	
+}

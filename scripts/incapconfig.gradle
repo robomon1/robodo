@@ -1,8 +1,0 @@
-configs {
-	environment {
-		description = 'UAT'
-	}
-	server {
-		description = 'UAT Test Server'
-	}
-}

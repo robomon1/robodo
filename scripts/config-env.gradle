@@ -1,5 +1,0 @@
-configs {
-	environment {
-		description = 'UAT'
-	}
-}
