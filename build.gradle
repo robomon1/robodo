@@ -52,7 +52,7 @@ task bootstrap << {
 	// git clone --depth=1 --branch=vrefactor2 git@github.com:robomon1/RaptureDevOps.git repotest
 	exec {
 		executable "git"
-		args "clone --depth=1 --branch=${checkout} ${remoteRepo} ${localRepo}"
+		args "clone", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
 	}
 	//def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
 	//repo = jgitCheckout(repo, checkout)
@@ -76,5 +76,3 @@ task papply << {
 	
 	setFacters(servercfg.factors.flatten())
 }
-
-	
