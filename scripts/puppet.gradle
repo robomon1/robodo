@@ -29,15 +29,17 @@ ext.setFacters = { facters ->
 
 ext.getFacters = { facter="all" ->
 	
-	def facterArgs = ["-p"]
+	def facterArgs = ["-p", "-j"]
 	def facters = new ByteArrayOutputStream()
 	if (facter != "all") {
 		facterArgs << facter
 	}
 	
 	exec {
-		execute "facter"
+		executable "facter"
 		args facterArgs
-		standardOutput = stdout;
+		standardOutput = facters;
 	}
+	return facters
 }
+

@@ -112,7 +112,7 @@ task testRepoClone << {
 }
 
 task testPuppetGetFacters << {
-	def facter = getOptions('facter', 'all')
+	def facter = getOption('facter', 'all')
 	def facters = getFacters(facter)
 	println "Facters: ${facters}"	
 }
