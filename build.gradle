@@ -31,7 +31,7 @@ task wrapper(type: Wrapper) {
   gradleVersion = '2.0'
 }
 
-task bootstrap << {
+task converge << {
 	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
 	def server = getOption('server') // Server name
 	def remoteRepo = getOption('remoteRepo') // Remote Git Repository
@@ -52,27 +52,37 @@ task bootstrap << {
 	// git clone --depth=1 --branch=vrefactor2 git@github.com:robomon1/RaptureDevOps.git repotest
 	exec {
 		executable "git"
-		args "clone", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+		args "clone", "--quiet", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
 	}
 	//def repo = jgitRepoClone(remoteRepo, "/opt/repoclone", username, password)
 	//repo = jgitCheckout(repo, checkout)
 }
 	
 task papply << {
-	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
-	def server = getOption('server') // Server name
+  def localRepo = getOption('localRepo', '/opt/localrepo') // local repo
+  def serverPath = getOption('serverPath') // Server configuraiton path
 
-  def configs1 = "/opt/repoclone/puppet/${env}/${server}/config-server.gradle"
-  def configs2 = "/opt/repoclone/puppet/${env}/${server}/config-env.gradle"
+  def configs1 = "${localRepo}/${serverPath}/config-server.gradle"
+  def configs2 = "${localRepo}/${serverPath}/config-env.gradle"
   def mcfg = mergeConfigs(configs1, configs2)
-  println "mcfg = ${mcfg}"
+  //println "mcfg = ${mcfg}"
   def environment = mcfg['environment']
-  println "${environment.hiera_yaml}"
-  println "${environment.modules_path}"
+  //println "${environment.hiera_yaml}"
+  //println "${environment.modules_path}"
   def servercfg = mcfg['server']
-  println "${servercfg.manifest}"
+  //println "${servercfg.manifest}"
 
-	//puppet apply --modulepath=../../modules --hiera_config=../../hiera.yaml --environment=dev ../../manifests/site.pp
-	
-	setFacters(servercfg.factors.flatten())
+  setFacters(servercfg.facters.flatten())
+  println "facters - ${servercfg.facters.flatten()}"
+
+  servercfg.manifests.each { manifest ->
+    //puppet apply --modulepath=../../modules --hiera_config=../../hiera.yaml --environment=dev ../../manifests/site.pp
+    exec {
+      executable "puppet"
+      args "apply", "--verbose", "--modulepath=${environment.modules_path}", "--hiera_config=${environment.hiera_yaml}", "--environment=${environment.name}", "${manifest}"
+      workingDir "${localRepo}/${serverPath}"
+    }
+  }
+
 }
+
