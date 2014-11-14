@@ -1,6 +1,6 @@
 import java.awt.GraphicsConfiguration.DefaultBufferCapabilities;
 
-def repolist = [ 'Incapture' : ['RaptureNew', 'RaptureFS', 'Vienna', 'RaptureApps', 'IDP', 'ViennaApps'] ]
+def repolist = [ 'robomon1' : ['robodo'] ]
 
 task testLoginOAuth << {
 	def resp = rsapiLoginOAuth()
@@ -28,7 +28,7 @@ task testProps << {
 }
 
 task testConfigs << {
-	def configs = getConfigs("scripts/incapconfig.gradle")
+	def configs = getConfigs("examples/configs/config-env.gradle")
 	def environment = configs['environment']
 	println "${environment}"
 	println "${environment.description}"
