@@ -1,0 +1,118 @@
+import java.awt.GraphicsConfiguration.DefaultBufferCapabilities;
+
+def repolist = [ 'robomon1' : ['robodo'] ]
+
+task testLoginOAuth << {
+	def resp = rsapiLoginOAuth()
+	println groovy.json.JsonOutput.prettyPrint(resp.data.toString())
+}
+
+task testProps << {
+	// Project property defined with -P on commandline
+	if (project.hasProperty("projprop")) {
+		println "projprop = ${projprop}"
+	} else {
+		println "projprop not defined in Project"
+	}
+	// System property defined with -D on commandline
+	println "sysprop = ${System.properties['sysprop']}"
+	if (project.hasProperty("fileprop")) {
+		println "fileprop = ${fileprop}"
+	} else {
+		println "fileprop not defined"
+	}
+
+	// test getOption closure
+	def product = getOption('product')
+	println "product = ${product}"
+}
+
+task testConfigs << {
+	def configs = getConfigs("examples/configs/config-env.gradle")
+	def environment = configs['environment']
+	println "${environment}"
+	println "${environment.description}"
+	def server = configs['server']
+	println "${server}"
+	println "${server.description}"
+}
+
+task testMergeConfigs << {
+	def configs1 = "scripts/config-env.gradle"
+	def configs2 = "scripts/config-server.gradle"
+	def mcfg = mergeConfigs(configs1, configs2)
+	println "mcfg = ${mcfg}"
+	def environment = mcfg['environment']
+	println "${environment}"
+	println "${environment.description}"
+	def server = mcfg['server']
+	println "${server}"
+	println "${server.description}"
+}
+
+task testGithubRepos << {
+	ghRepos()
+}
+
+task testGithubTag << {
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			def tag = ghTag("${username}", "${password}", "${repoowner}", "${repo}", "${release}")
+		}
+	}	
+}
+
+task testGithubPullRequests << {
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+	
+	def prState = getOption('prState', "open")
+	def prSize = getOption('prSize', "0")
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			ghPullRequests("${username}", "${password}", "${repoowner}", "${repo}", "${prState}", 0, prSize.toInteger())
+		}
+	}	
+}
+
+task testGithubCommits << {
+	def config = new ConfigSlurper().parse(file("${System.properties['user.home']}/.rdo/config").toURI().toURL())
+	
+	def username = config.github.username
+	def password = config.github.password
+	
+	def release = getOption('release', "20141107212847")
+	
+	repolist.each { repoowner, repos ->
+		repos.each { repo ->
+			ghCommits("${username}", "${password}", "${repoowner}", "${repo}")
+		}
+	}	
+}
+
+task testRepoCreate << {
+	jgitRepoCreate("${System.env.HOME}/tmp/testrepo")
+}
+
+task testRepoClone << {
+  def remoteRepo = getOption("remoteRepo", "https://github.com/robomon1/robodo.git")
+  def localRepo = getOption("localRepo", "${System.env.HOME}/tmp/testrepo")
+	jgitRepoClone(remoteRepo, localRepo) 
+}
+
+task testPuppetGetFacters << {
+	def facter = getOption('facter', 'all')
+	def facters = getFacters(facter)
+	println "Facters: ${facters}"	
+}

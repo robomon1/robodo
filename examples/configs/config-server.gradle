@@ -1,0 +1,10 @@
+configs {
+	server {
+		description = 'DEV Test Server'
+		manifest = '../../../puppet/manifess/site.pp'
+		factors {
+			facter1 = true
+			facter2 = 'dev'
+		}
+	}
+}

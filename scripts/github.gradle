@@ -1,0 +1,213 @@
+import com.sun.net.httpserver.Headers
+import org.eclipse.egit.github.core.*
+import org.eclipse.egit.github.core.client.*
+import org.eclipse.egit.github.core.service.*
+import groovyx.net.http.RESTClient
+import groovyx.net.http.Method
+import groovyx.net.http.ContentType
+import groovyx.net.http.ParserRegistry
+
+import java.io.File
+import java.io.IOException
+
+import org.eclipse.jgit.api.*
+import org.eclipse.jgit.api.errors.*
+import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
+import org.eclipse.jgit.internal.storage.file.FileRepository
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'org.codehaus.groovy.modules.http-builder:http-builder:0.5.2'
+		classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
+		classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
+	}
+}
+
+GitHubClient ghclient = null
+
+ext.ghClient = {
+	
+	if (ghclient == null) {
+		ghclient = new GitHubClient();
+		ghclient.setOAuth2Token("10bfe6d95c7ab0f619441b5e147a412e7f4efa5");
+	}
+
+}
+
+ext.ghRepos = {
+	//ghClient();  // Make sure we are logged in first
+	
+	RepositoryService service = new RepositoryService();
+	for (Repository repo : service.getRepositories("robomon1"))
+		println "${repo.getName()} Watchers: ${repo.getWatchers()}"
+	
+}
+
+ext.printPullRequest = { PullRequest pr ->
+	println "${pr.getUser()?.getLogin()} : ${pr.getHtmlUrl()}"
+	println "State: ${pr.getState()}"
+	if (pr.isMergeable()) {
+		println "isMergeable?: true"
+	} else {
+		println "isMergeable?: false"
+	}
+	if (pr.isMerged()) {
+		println "isMerged?: true"
+	} else {
+		println "isMerged?: false"
+	}
+	println "Merged By: ${pr.getMergedBy()?.getlogin()}"
+	println "Merged At: ${pr.getMergedAt()}"
+	println "Assignee: ${pr.getAssignee()?.getLogin()}"
+	PullRequestMarker prmbase = pr.getBase()
+	println "Base ref: ${prmbase.getRef()}"
+	println "Base label: ${prmbase.getLabel()}"
+	println "Base sha: ${prmbase.getSha()}"
+	PullRequestMarker prmhead = pr.getHead()
+	println "Head ref: ${prmhead.getRef()}"
+	println "Head label: ${prmhead.getLabel()}"
+	println "Head sha: ${prmhead.getSha()}"
+	println "Comments: ${pr.getComments()}"
+}
+
+ext.ghPullRequests = { username, password, owner, repo, state="open", start=1, size=100 ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	PullRequestService service = new PullRequestService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def prs = []
+	
+	try {
+		if (size == 0) {
+			prs = service.getPullRequests(repoId, state)
+		} else {
+			PageIterator priterator = service.pagePullRequests(repoId, state, start, size)
+			if (priterator.hasNext()) {
+				println "Getting next..."
+				def prit = priterator.next()
+//				println "PRIT Class: ${prit.getClass()}"
+				prit.each { pr ->
+//					println "PR Class: ${pr.getClass()}"
+					if (pr != null) {
+						prs << pr
+					}
+				}
+			}
+		}
+		println "${repo} Pull Requests: ${prs.size()}"
+		prs.each { pr ->
+			printPullRequest(pr)
+		}
+	} catch (Exception e) {
+		prs = []
+		println "${repo} Pull Requests: 0"
+		println e.getMessage()
+	}
+	
+	return prs
+}
+
+ext.ghTag = { username, password, owner, repo, tagname  ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	RepositoryService service = new RepositoryService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def tags = []
+	def searchtag = null
+	
+	try {
+		tags = service.getTags(repoId)
+		println "${repo} Tags: ${tags.size()}"
+		tags.each { tag ->
+			if (tag.getName().contains(tagname)) {
+				searchtag = tag
+				println "Tag ${tagname} found : ${tag.getName()}"
+			} else {
+//				println "Tag ${tagname} not found : ${tag.getName()}"
+			}
+		}
+	} catch (RequestException re) {
+		println "RequestException: ${re.getMessage()}"
+	} catch (Exception e) {
+		println "Exception: ${e.printStackTrace()}"
+	}
+	
+	return searchtag
+}
+
+ext.ghCommits = { username, password, owner, repo, sha  ->
+	// owner - account (ex: robomon1)
+	// repo - just the name of the repo (ex: robodo)
+	// username - login name or oauth2 token
+	// password - login password or x-oauth-basic if using an oauth2 token as username
+
+	CommitService service = new CommitService()
+	service.getClient().setCredentials("${username}", "${password}")
+	RepositoryId repoId = new RepositoryId(owner, repo);
+	def commits = []
+	
+	try {
+		commits = service.getCommits(repoId, sha)
+		println "${repo} Commits: ${commits.size()}"
+		commits.each { commit ->
+			println "${commit.getAuthor().getName()} : ${commit.getMessage()}"
+			println "${commit.getCommitter().getName()}"
+		}
+	} catch (Exception e) {
+		commits = []
+		println "${repo} Commits: 0"
+	}
+	
+	return commits
+}
+
+ext.jgitRepoCreate = { localPath ->
+	Repository newRepo = new FileRepository(localPath + "/.git")
+	newRepo.create()
+}
+
+ext.jgitRepoClone = { remotePath, localPath, username, password, checkout=true ->
+	def jrepoPath = new File(localPath)
+	Git repo
+	if (!jrepoPath.exists()) { 
+		repo = Git.cloneRepository()
+			.setURI(remotePath)
+			.setDirectory(new File(localPath))
+			.setNoCheckout(checkout)
+			.setCredentialsProvider(new UsernamePasswordCredentialsProvider(username, password))
+			.call()
+	} else {
+		// Load existing repo
+	        def localRepo = new FileRepository(localPath + "/.git")
+	        repo = new Git(localRepo)
+	}
+
+	return repo
+}
+
+ext.jgitCheckout = { Git repo, branch='master' ->
+	//repo.checkout().setName(branch).call()
+
+	repo.checkout()
+		.setCreateBranch(true)
+		.setName(branch)
+                .setUpstreamMode(SetupUpstreamMode.SET_UPSTREAM)
+                .setStartPoint("origin/${branch}")
+		.call()
+
+	return repo
+}
+

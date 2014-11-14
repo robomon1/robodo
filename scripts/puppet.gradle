@@ -1,0 +1,45 @@
+import java.io.File
+import java.io.IOException
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
+	}
+}
+
+ext.setFacters = { facters ->
+	//def factPath = "puppet config print factpath".execute()
+	//factPath.waitFor() 
+	//println "${factPath.text}"
+	def factdDir = new File('/etc/facter/facts.d')
+	factdDir.mkdirs()
+	def facterfile = new File('/etc/facter/facts.d/serverfacts.txt')
+	if (facterfile.exists()) {
+		facterfile.delete()
+	}
+	facterfile.createNewFile()
+	facters.each { key, value ->
+		//facterfile << "FACTER_$key=$value\n"
+		facterfile << "$key=$value\n"
+	}
+}
+
+ext.getFacters = { facter="all" ->
+	
+	def facterArgs = ["-p", "-j"]
+	def facters = new ByteArrayOutputStream()
+	if (facter != "all") {
+		facterArgs << facter
+	}
+	
+	exec {
+		executable "facter"
+		args facterArgs
+		standardOutput = facters;
+	}
+	return facters
+}
+

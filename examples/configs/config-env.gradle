@@ -1,0 +1,7 @@
+configs {
+	environment {
+		description = 'DEV'
+		modules_path = '../../../puppet/modules'
+		hiera_yaml = '../../../puppet/hiera.yaml'
+	}
+}

@@ -1,0 +1,83 @@
+apply from: 'scripts/core.gradle'
+apply from: 'scripts/test.gradle'
+apply from: 'scripts/github.gradle'
+apply from: 'scripts/puppet.gradle'
+
+import java.io.File
+import java.io.IOException
+
+import org.eclipse.jgit.api.*
+import org.eclipse.jgit.api.errors.*
+import org.eclipse.jgit.api.CreateBranchCommand.SetupUpstreamMode
+import org.eclipse.jgit.internal.storage.file.FileRepository
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
+
+repositories { mavenCentral() }
+
+buildscript {
+	repositories { mavenCentral() }
+	dependencies {
+		classpath 'org.eclipse.mylyn.github:org.eclipse.egit.github.core:2.1.5'
+		classpath 'org.eclipse.jgit:org.eclipse.jgit:3.5.1.201410131835-r'
+	}
+}
+
+task wrapper(type: Wrapper) { gradleVersion = '2.0' }
+
+task bootstrap << {
+	// Create the symlink
+	exec {
+		executable "ln"
+		args "-s", "${projectDir}/bin/rdog", "/usr/bin/rdog"
+	}
+}
+
+task converge << {
+	def remoteRepo = getOption('remoteRepo') // Remote Git Repository
+	def localRepo = getOption('localRepo', '/opt/localrepo') // Local Repository path
+	//def puppetPath = getOption('puppetPath', 'puppet') // Path inside repo where puppet files are
+	def checkout = getOption('checkout', 'master') // Branch, Tag, Commit
+	def username = getOption('username') // Git username
+	def password = getOption('password') // Git password
+
+	println "remoteRepo = ${remoteRepo}"
+	println "localRepo = ${localRepo}"
+	println "checkout = ${checkout}"
+	println "username = ${username}"
+	//println "password = ${password}"
+
+	exec {
+		executable "git"
+		args "clone", "--quiet", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+	}
+}
+
+task papply << {
+	def localRepo = getOption('localRepo', '/opt/localrepo') // local repo
+	def serverPath = getOption('serverPath') // Server configuration path
+
+	def configs1 = "${localRepo}/${serverPath}/config-server.gradle"
+	def configs2 = "${localRepo}/${serverPath}/config-env.gradle"
+	def mcfg = mergeConfigs(configs1, configs2)
+	//println "mcfg = ${mcfg}"
+	def environment = mcfg['environment']
+	//println "${environment.hiera_yaml}"
+	//println "${environment.modules_path}"
+	def servercfg = mcfg['server']
+	//println "${servercfg.manifest}"
+
+	setFacters(servercfg.facters.flatten())
+	println "facters - ${servercfg.facters.flatten()}"
+
+	servercfg.manifests.each { manifest ->
+		//puppet apply --modulepath=../../modules --hiera_config=../../hiera.yaml --environment=dev ../../manifests/site.pp
+		exec {
+			executable "puppet"
+			args "apply", "--verbose", "--modulepath=${environment.modules_path}", "--hiera_config=${environment.hiera_yaml}", "--environment=${environment.name}", "${manifest}"
+			workingDir "${localRepo}/${serverPath}"
+		}
+	}
+
+}
+
