@@ -31,23 +31,27 @@ task wrapper(type: Wrapper) {
   gradleVersion = '2.0'
 }
 
+task bootstrap << {
+  // Create the symlink
+  exec {
+    executable "ln"
+    args "-s", "${projectDir}/bin/rdog", "/usr/bin/rdog"
+  }
+}
+
 task converge << {
-	def env = getOption('env', 'dev') // Environment such as dev, qa, prd
-	def server = getOption('server') // Server name
 	def remoteRepo = getOption('remoteRepo') // Remote Git Repository
 	def localRepo = getOption('localRepo', '/opt/localrepo') // Local Repository path
-	def puppetPath = getOption('puppetPath', 'puppet') // Path inside repo where puppet files are
+	//def puppetPath = getOption('puppetPath', 'puppet') // Path inside repo where puppet files are
 	def checkout = getOption('checkout', 'master') // Branch, Tag, Commit
 	def username = getOption('username') // Git username
 	def password = getOption('password') // Git password
 
-  println "env = ${env}"
-  println "server = ${server}"
-  println "remoteRepo = ${remoteRepo}"
-  println "localRepo = ${localRepo}"
-  println "checkout = ${checkout}"
-  println "username = ${username}"
-  //println "password = ${password}"
+	println "remoteRepo = ${remoteRepo}"
+	println "localRepo = ${localRepo}"
+	println "checkout = ${checkout}"
+	println "username = ${username}"
+	//println "password = ${password}"
 	
 	// git clone --depth=1 --branch=vrefactor2 git@github.com:robomon1/RaptureDevOps.git repotest
 	exec {
