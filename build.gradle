@@ -47,9 +47,18 @@ task converge << {
 	println "username = ${username}"
 	//println "password = ${password}"
 
-	exec {
-		executable "git"
-		args "clone", "--quiet", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+	def localRepoFolder = new File(localRepo)
+	if (!localRepoFolder.exists()) {
+		exec {
+			executable "git"
+			args "clone", "--quiet", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+		}
+	} else {
+		exec {
+			executable "git"
+			args "pull", "--quiet"
+			workingDir "${localRepo}"
+		}
 	}
 }
 
