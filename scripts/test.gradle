@@ -1,7 +1,6 @@
 import java.awt.GraphicsConfiguration.DefaultBufferCapabilities;
 
-def repolist = [ 'Incapture' : ['RaptureNew', 'RaptureFS', 'Vienna', 'RaptureApps', 'IDP', 'ViennaApps'] ]
-//def repolist = [ 'robomon1' : ['robodo'] ]
+def repolist = [ 'robomon1' : ['robodo'] ]
 
 task testLoginOAuth << {
 	def resp = rsapiLoginOAuth()
