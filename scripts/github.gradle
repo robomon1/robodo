@@ -49,6 +49,7 @@ ext.ghRepos = {
 }
 
 ext.printPullRequest = { PullRequest pr ->
+  println "-"*40
 	println "${pr.getUser()?.getLogin()} : ${pr.getHtmlUrl()}"
 	println "State: ${pr.getState()}"
 	if (pr.isMergeable()) {
@@ -73,6 +74,7 @@ ext.printPullRequest = { PullRequest pr ->
 	println "Head label: ${prmhead.getLabel()}"
 	println "Head sha: ${prmhead.getSha()}"
 	println "Comments: ${pr.getComments()}"
+  println "-"*40
 }
 
 ext.ghPullRequests = { username, password, owner, repo, state="open", start=1, size=100 ->
