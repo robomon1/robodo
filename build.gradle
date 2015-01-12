@@ -29,7 +29,7 @@ task bootstrap << {
 	// Create the symlink
 	exec {
 		executable "ln"
-		args "-s", "${projectDir}/bin/rdog", "/usr/bin/rdog"
+		args "-f", "-s", "${projectDir}/bin/rdog", "/usr/bin/rdog"
 	}
 }
 
@@ -47,9 +47,18 @@ task converge << {
 	println "username = ${username}"
 	//println "password = ${password}"
 
-	exec {
-		executable "git"
-		args "clone", "--quiet", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+	def localRepoFolder = new File(localRepo)
+	if (!localRepoFolder.exists()) {
+		exec {
+			executable "git"
+			args "clone", "--quiet", "--recursive", "--depth=1", "--branch=${checkout}", "${remoteRepo}", "${localRepo}"
+		}
+	} else {
+		exec {
+			executable "git"
+			args "pull", "--quiet", "--recursive"
+			workingDir "${localRepo}"
+		}
 	}
 }
 

@@ -62,7 +62,7 @@ task testGithubTag << {
 
 	def release = getOption('release', "20141107212847")
 	
-	repolist.each { repoowner, repos ->
+	config.github.repositories.each { repoowner, repos ->
 		repos.each { repo ->
 			def tag = ghTag("${username}", "${password}", "${repoowner}", "${repo}", "${release}")
 		}
@@ -79,7 +79,8 @@ task testGithubPullRequests << {
 	def prSize = getOption('prSize', "0")
 	def release = getOption('release', "20141107212847")
 	
-	repolist.each { repoowner, repos ->
+//	repolist.each { repoowner, repos ->
+	config.github.repositories.each { repoowner, repos ->
 		repos.each { repo ->
 			ghPullRequests("${username}", "${password}", "${repoowner}", "${repo}", "${prState}", 0, prSize.toInteger())
 		}
