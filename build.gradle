@@ -56,7 +56,7 @@ task converge << {
 	} else {
 		exec {
 			executable "git"
-			args "pull", "--quiet", "--recursive"
+			args "pull", "--quiet"
 			workingDir "${localRepo}"
 		}
 	}
